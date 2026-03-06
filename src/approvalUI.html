@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinterest Affiliate Agent</title>
+    
+</head>
+<link rel="stylesheet" href="approvalUI.css"/>
+<body>
+    <div class="container">
+        <h1>Pinterest Affiliate Agent</h1>
+        <!--sraech secton-->
+        <div id="searchSection">
+            <label>Niche / Keyword</label>
+            <input  id="keyword" type="text" value="indian traditional wear" placeholder="e.g. indian saree women"/>
+
+            <label> Minimum Rating</label>
+            <input id="minRating" type="number" step="0.1" min="0" max="5" value="4.0"/>
+
+            <label>Max Products to fetch</label>
+            <input id="maxresults" type="number" value ="10" min="1" max="15"/>
+
+            <button class="btn btn-red" onclick="startSearch()">
+                Search Products
+            </button>
+            <div id="message"></div>
+        </div>
+
+<!--product approval section-->
+<div id="productSection">
+    <div class="progress" id="progress">Product 1 total </div>
+    <div class="product-card">
+        <img id="productImage" src="" alt="Product Image"/>
+        <div class="product-info">
+            <h2 id="productTitle"></h2>
+            <div class="meta">
+                <span id="productRating">⭐-</span>
+                <span id="productReviews">💬-</span>
+            </div>
+            <div class="price" id="productPrice"></div>
+        </div>
+    </div>
+    <div class="btn-row">
+        <button class="btn btn-gray" onclick="decide('reject')">Reject</button>
+        <button class="btn btn-green" onclick="decide('accept')">Approve</button>
+    </div>
+    <div id="message"></div>
+</div>
+<!--accepted section-->
+<div id="acceptedSection">
+    <div style="font-size:32px">🎉</div>
+    <h2 style="color:#00a650; margin-top:8px">Product Accepted!</h2>
+    <img id="acceptedImage" src="" alt=""/>
+    <h2 id="acceptedTitle"></h2>
+    <div class="price" id="acceptedPrice"></div>
+    <div class="affiliate-link" id="affiliateLink"></div>
+    <button class="btn btn-red" style="margin-top:16px" onclick="goToContent()">
+        Generate Pintrest Content->
+    </button>
+    <div class="status">Next: AI will write your pin title, description & hashtags</div>
+    </div>    
+</div>
+<!-- CONTENT SECTION -->
+<div id="contentSection" style="display:none">
+  <h2 style="color:#e60023; text-align:center; margin-bottom:16px">📌 Generated Pinterest Content</h2>
+  
+  <label style="font-weight:600; margin-top:16px; display:block">Pin Title:</label>
+  <div id="generatedTitle" style="background:#f5f5f5; padding:12px; border-radius:8px; margin-top:6px"></div>
+
+  <label style="font-weight:600; margin-top:16px; display:block">Description:</label>
+  <div id="generatedDescription" style="background:#f5f5f5; padding:12px; border-radius:8px; margin-top:6px"></div>
+
+  <label style="font-weight:600; margin-top:16px; display:block">Hashtags:</label>
+  <div id="generatedHashtags" style="background:#f5f5f5; padding:12px; border-radius:8px; margin-top:6px"></div>
+
+  <button class="btn btn-red" style="margin-top:20px; width:100%" onclick="postToPinterest()">
+    📤 Post to Pinterest →
+  </button>
+  <div id="message"></div>
+</div>
+<script>
+    let acceptedProducts = null;
+    function show(section){
+       document.getElementById('searchSection').style.display = 'none';
+        document.getElementById('productSection').style.display = 'none';
+      document.getElementById('acceptedSection').style.display = 'none';
+      document.getElementById('contentSection').style.display = 'none';
+        document.getElementById(section).style.display = 'block';
+
+    }
+    function setMessage(msg){
+        const els=document.querySelectorAll('#message');
+        els.forEach(el=>el.innerText=msg);
+    }
+    async function startSearch(){
+        const keyword=document.getElementById('keyword').value.trim();
+        const minRating = parseFloat(document.getElementById('minRating').value);
+        const maxResults = parseInt(document.getElementById('maxresults').value);
+
+        if(!keyword){
+            return setMessage('Please enter a keyword!');
+        }
+        setMessage('Searching products...');
+
+        const res=await fetch('/search',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({keyword,minRating,maxResults})
+        });
+        const data=await res.json();
+        if(!data.success){
+            return  setMessage(data.message);
+        }
+        showProduct(data.product,data.index+1,data.total);1
+        show('productSection');
+    }
+    function showProduct(product,index,total){
+        document.getElementById('progress').textContent = `Product ${index} of ${total}`;
+        document.getElementById('productImage').src = product.image;
+        document.getElementById('productTitle').textContent = product.title;
+        document.getElementById('productRating').textContent = `⭐ ${product.rating}`;
+        document.getElementById('productReviews').textContent = `💬 ${product.reviews} reviews`;
+        document.getElementById('productPrice').textContent = product.price || 'Price N/A';
+        setMessage('');
+    }
+    async function decide(decision){
+        const res=await fetch('/decision',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({decision})
+        })
+        const data=await res.json();
+        if(!data.success){
+            return setMessage(data.message);
+        }
+        if(data.accepted){
+            acceptedProducts=data.product;
+                document.getElementById('acceptedImage').src = data.product.image;
+                document.getElementById('acceptedTitle').textContent = data.product.title;
+                document.getElementById('acceptedPrice').textContent = data.product.price || '';
+                document.getElementById('affiliateLink').textContent = data.product.productUrl;
+                show('acceptedSection');
+    } else {
+      showProduct(data.product, data.index + 1, data.total);
+    }
+}
+    async function goToContent() {
+        setMessage('Generating content, please wait...');
+
+        const res=await fetch('/generate',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({product:acceptedProducts})
+        })
+        const data=await res.json();
+        if(!data.success){
+            return setMessage(data.message);
+        }
+        //redirect to content creation page with generated data
+        const {title,description,hashtags}=data.content;
+
+// display it in on page 
+        document.getElementById('generatedTitle').textContent = title;
+        document.getElementById('generatedDescription').textContent = description;
+        document.getElementById('generatedHashtags').textContent = hashtags.join(' ');
+        
+        show('contentSection'); 
+
+  
+}
+     
+</script>
+    
+</body>
+</html>
