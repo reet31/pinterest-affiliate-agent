@@ -169,6 +169,26 @@
 
   
 }
+async function postToPinterest(){
+    setMessage('Posting to pintrest');
+    const content={
+        title:document.getElementById('generatedTitle').textContent,
+        description:document.getElementById('generatedDescription').textContent,
+        hashtags:document.getElementById('generatedHashtags').textContent.split(' '),
+    }
+    const res=await fetch('/post',{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json'},
+            body:JSON.stringify({content})
+        });
+        const data=await res.json();
+        if(data.success){
+            setMessage('Pin posted');
+        }else{
+            setMessage('Failed to post pin');
+        }
+}
      
 </script>
     

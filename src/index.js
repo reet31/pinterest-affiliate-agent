@@ -3,6 +3,7 @@ const express = require('express');
 const path =require('path');
 const { searchProducts } = require('./amazonSearch');
 const { generateContent } = require('./contentGenerator');
+const { uploadToPinterest } = require('./pinterestPost');
 const app= express();
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -66,6 +67,23 @@ app.post('/generate',async(req,res)=>{
   } catch (error) {
     console.error('Error generating content:',error);
     res.status(500).json({success:false,message:'Failed to generate content'});
+  }
+})
+//s5 upload to pintrest !final styep
+
+app.post('/post',async(req,res)=>{
+  try{
+    const {content}=req.body;
+    if(!acceptedprod){
+      return res.json({success:false,message:'No accepted Product!'});
+    }
+    const result=await uploadToPinterest(acceptedprod,content);
+    res.json(result);
+  }catch(error){
+    res.json({
+      success:false,
+      message:'Failed to post to Pinterest',
+    })
   }
 })
 const PORT = process.env.PORT || 3000;
